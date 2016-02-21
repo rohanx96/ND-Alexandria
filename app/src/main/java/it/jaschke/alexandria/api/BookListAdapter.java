@@ -60,4 +60,6 @@ public class BookListAdapter extends CursorAdapter {
 
         return view;
     }
+
+
 }

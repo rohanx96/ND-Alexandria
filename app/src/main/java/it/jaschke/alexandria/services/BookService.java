@@ -156,6 +156,10 @@ public class BookService extends IntentService {
         final String IMG_URL_PATH = "imageLinks";
         final String IMG_URL = "thumbnail";
 
+        /** This prevents force close due to null strings. Solves the issue of force close when there is no internet connection */
+        if (bookJsonString == null){
+            return;
+        }
         try {
             JSONObject bookJson = new JSONObject(bookJsonString);
             JSONArray bookArray;
@@ -188,9 +192,11 @@ public class BookService extends IntentService {
             }
 
             writeBackBook(ean, title, subtitle, desc, imgUrl);
+            Log.i(LOG_TAG, "added book details");
 
             if(bookInfo.has(AUTHORS)) {
                 writeBackAuthors(ean, bookInfo.getJSONArray(AUTHORS));
+                Log.i(LOG_TAG,"added book authors");
             }
             if(bookInfo.has(CATEGORIES)){
                 writeBackCategories(ean,bookInfo.getJSONArray(CATEGORIES) );
