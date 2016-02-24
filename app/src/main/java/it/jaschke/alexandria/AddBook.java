@@ -21,6 +21,9 @@ import android.widget.TextView;
 import android.widget.Toast;
 
 
+import com.google.zxing.client.android.Intents;
+import com.google.zxing.integration.android.IntentIntegrator;
+
 import it.jaschke.alexandria.data.AlexandriaContract;
 import it.jaschke.alexandria.services.BookService;
 import it.jaschke.alexandria.services.DownloadImage;
@@ -102,12 +105,16 @@ public class AddBook extends Fragment implements LoaderManager.LoaderCallbacks<C
                 // Hint: Use a Try/Catch block to handle the Intent dispatch gracefully, if you
                 // are using an external app.
                 //when you're done, remove the toast below.
-                Context context = getActivity();
+                /*Context context = getActivity();
                 CharSequence text = "This button should let you scan a book for its barcode!";
                 int duration = Toast.LENGTH_SHORT;
 
                 Toast toast = Toast.makeText(context, text, duration);
-                toast.show();
+                toast.show();*/
+
+                //Creates an intent to start the barcode scanner. This calls startActivityForResult and the results are managed in
+                // onActivityResult implementation
+                IntentIntegrator.forSupportFragment(AddBook.this).initiateScan();
 
             }
         });
@@ -210,6 +217,23 @@ public class AddBook extends Fragment implements LoaderManager.LoaderCallbacks<C
         rootView.findViewById(R.id.bookCover).setVisibility(View.INVISIBLE);
         rootView.findViewById(R.id.save_button).setVisibility(View.INVISIBLE);
         rootView.findViewById(R.id.delete_button).setVisibility(View.INVISIBLE);
+    }
+
+    /** Handles the result from the barcode scanner intent */
+    @Override
+    public void onActivityResult(int requestCode, int resultCode, Intent data) {
+        if(requestCode == IntentIntegrator.REQUEST_CODE){
+            if (resultCode == Activity.RESULT_OK){
+                // This gets the ISBN for the scanned book barcode
+                String contents = data.getStringExtra(Intents.Scan.RESULT);
+                //This will remove any book that was searched previously from the UI.
+                // This is required because if book is not found then user will still be displayed the previous book details
+                clearFields();
+                // Set the text for ean edit text as the ISBN number received from scan
+                // The after text changed listener automatically refreshes the search and cursor loader
+                ((EditText)rootView.findViewById(R.id.ean)).setText(contents);
+            }
+        }
     }
 
     @Override
