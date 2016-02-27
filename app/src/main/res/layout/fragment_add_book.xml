@@ -124,5 +124,12 @@
         </Button>
 
     </LinearLayout>
+    <TextView
+        android:id="@+id/add_book_error_text"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:visibility="invisible"
+        android:gravity="center"
+        android:layout_margin="16dp"/>
 
 </RelativeLayout>

@@ -2,9 +2,13 @@ package it.jaschke.alexandria.services;
 
 import android.app.IntentService;
 import android.content.ContentValues;
+import android.content.Context;
 import android.content.Intent;
 import android.database.Cursor;
+import android.net.ConnectivityManager;
+import android.net.NetworkInfo;
 import android.net.Uri;
+import android.preference.PreferenceManager;
 import android.support.v4.content.LocalBroadcastManager;
 import android.util.Log;
 
@@ -37,6 +41,10 @@ public class BookService extends IntentService {
     public static final String DELETE_BOOK = "it.jaschke.alexandria.services.action.DELETE_BOOK";
 
     public static final String EAN = "it.jaschke.alexandria.services.extra.EAN";
+    public static final int STATUS_OK = 0;
+    public static final int STATUS_SERVER_DOWN = 1;
+    public static final int STATUS_SERVER_INVALID = 2;
+    public static final int STATUS_SERVER_UNKNOWN = 3;
 
     public BookService() {
         super("Alexandria");
@@ -95,6 +103,12 @@ public class BookService extends IntentService {
         BufferedReader reader = null;
         String bookJsonString = null;
 
+        // Check for internet connectivity. If not available then set status as unknown and return
+        if (!isInternetAvailable()){
+            setConnectionStatus(STATUS_SERVER_UNKNOWN);
+            Log.i(LOG_TAG,"no connection");
+            return;
+        }
         try {
             final String FORECAST_BASE_URL = "https://www.googleapis.com/books/v1/volumes?";
             final String QUERY_PARAM = "q";
@@ -114,6 +128,8 @@ public class BookService extends IntentService {
             InputStream inputStream = urlConnection.getInputStream();
             StringBuffer buffer = new StringBuffer();
             if (inputStream == null) {
+                // Set the status of server down if nothing is returned by server
+                setConnectionStatus(STATUS_SERVER_DOWN);
                 return;
             }
 
@@ -123,13 +139,18 @@ public class BookService extends IntentService {
                 buffer.append(line);
                 buffer.append("\n");
             }
-
+            // This prevents null json string. Solves the issue of force close when there is no internet connection
             if (buffer.length() == 0) {
+                // Set the status of server down if nothing is returned by server
+                setConnectionStatus(STATUS_SERVER_DOWN);
                 return;
             }
             bookJsonString = buffer.toString();
-        } catch (Exception e) {
+        } catch (IOException e) {
             Log.e(LOG_TAG, "Error ", e);
+            // Set the status of server down if nothing is returned by server
+            setConnectionStatus(STATUS_SERVER_DOWN);
+            return;
         } finally {
             if (urlConnection != null) {
                 urlConnection.disconnect();
@@ -156,10 +177,6 @@ public class BookService extends IntentService {
         final String IMG_URL_PATH = "imageLinks";
         final String IMG_URL = "thumbnail";
 
-        /** This prevents force close due to null strings. Solves the issue of force close when there is no internet connection */
-        if (bookJsonString == null){
-            return;
-        }
         try {
             JSONObject bookJson = new JSONObject(bookJsonString);
             JSONArray bookArray;
@@ -201,9 +218,13 @@ public class BookService extends IntentService {
             if(bookInfo.has(CATEGORIES)){
                 writeBackCategories(ean,bookInfo.getJSONArray(CATEGORIES) );
             }
+            // Everything worked fine so set the server status as ok
+            setConnectionStatus(STATUS_OK);
 
         } catch (JSONException e) {
             Log.e(LOG_TAG, "Error ", e);
+            // Invalid Json file returned by server
+            setConnectionStatus(STATUS_SERVER_INVALID);
         }
     }
 
@@ -235,5 +256,17 @@ public class BookService extends IntentService {
             getContentResolver().insert(AlexandriaContract.CategoryEntry.CONTENT_URI, values);
             values= new ContentValues();
         }
+    }
+
+    /** Sets the server status shared preference based on the status of server */
+    private void setConnectionStatus(int status) {
+        PreferenceManager.getDefaultSharedPreferences(this).edit().putInt(getString(R.string.pref_connection_status),status).commit();
+    }
+
+    /** Gets the current state of network */
+    private boolean isInternetAvailable(){
+        ConnectivityManager manager = (ConnectivityManager) getSystemService(Context.CONNECTIVITY_SERVICE);
+        NetworkInfo info = manager.getActiveNetworkInfo();
+        return info!=null && info.isConnectedOrConnecting();
     }
  }

@@ -3,8 +3,12 @@ package it.jaschke.alexandria;
 import android.app.Activity;
 import android.content.Context;
 import android.content.Intent;
+import android.content.SharedPreferences;
 import android.database.Cursor;
+import android.net.ConnectivityManager;
+import android.net.NetworkInfo;
 import android.os.Bundle;
+import android.preference.PreferenceManager;
 import android.support.v4.app.Fragment;
 import android.support.v4.app.LoaderManager;
 import android.support.v4.content.CursorLoader;
@@ -29,7 +33,7 @@ import it.jaschke.alexandria.services.BookService;
 import it.jaschke.alexandria.services.DownloadImage;
 
 
-public class AddBook extends Fragment implements LoaderManager.LoaderCallbacks<Cursor> {
+public class AddBook extends Fragment implements LoaderManager.LoaderCallbacks<Cursor>, SharedPreferences.OnSharedPreferenceChangeListener {
     private static final String TAG = "INTENT_TO_SCAN_ACTIVITY";
     private EditText ean;
     private final int LOADER_ID = 1;
@@ -52,6 +56,21 @@ public class AddBook extends Fragment implements LoaderManager.LoaderCallbacks<C
         if(ean!=null) {
             outState.putString(EAN_CONTENT, ean.getText().toString());
         }
+    }
+
+    @Override
+    public void onResume() {
+        super.onResume();
+        PreferenceManager.getDefaultSharedPreferences(getActivity()).registerOnSharedPreferenceChangeListener(this);
+    }
+
+    @Override
+    public void onPause() {
+        super.onPause();
+        SharedPreferences preferences = PreferenceManager.getDefaultSharedPreferences(getActivity());
+        preferences.unregisterOnSharedPreferenceChangeListener(this);
+        // This is used to reset the shared preference else the error text does not get updated if same error comes on next start of activity
+        preferences.edit().putInt(getString(R.string.pref_connection_status),BookService.STATUS_OK).apply();
     }
 
     @Override
@@ -219,6 +238,31 @@ public class AddBook extends Fragment implements LoaderManager.LoaderCallbacks<C
         rootView.findViewById(R.id.delete_button).setVisibility(View.INVISIBLE);
     }
 
+    /** This method sets and displays the error text based on the status of the server */
+    private void updateErrorText(){
+        TextView errorText = (TextView) rootView.findViewById(R.id.add_book_error_text);
+        errorText.setVisibility(View.VISIBLE);
+        switch (PreferenceManager.getDefaultSharedPreferences(getActivity()).getInt
+                (getString(R.string.pref_connection_status),-1)){
+            case BookService.STATUS_SERVER_DOWN:
+                clearFields(); // Remove any previously visible book information
+                errorText.setText(getString(R.string.error_text_server_down));
+                break;
+            case BookService.STATUS_SERVER_INVALID:
+                clearFields();
+                errorText.setText(getString(R.string.error_text_invalid));
+                break;
+            case BookService.STATUS_OK:
+                errorText.setText("");
+                errorText.setVisibility(View.INVISIBLE);
+                break;
+            case BookService.STATUS_SERVER_UNKNOWN:
+                clearFields();
+                errorText.setText(getString(R.string.error_text_no_connection));
+                break;
+        }
+    }
+
     /** Handles the result from the barcode scanner intent */
     @Override
     public void onActivityResult(int requestCode, int resultCode, Intent data) {
@@ -241,4 +285,12 @@ public class AddBook extends Fragment implements LoaderManager.LoaderCallbacks<C
         super.onAttach(activity);
         activity.setTitle(R.string.scan);
     }
+
+    @Override
+    public void onSharedPreferenceChanged(SharedPreferences sharedPreferences, String key) {
+        if(key.equals(getString(R.string.pref_connection_status)))
+            updateErrorText();
+    }
+
+
 }

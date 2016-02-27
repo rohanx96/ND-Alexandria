@@ -3,6 +3,10 @@
     package="it.jaschke.alexandria" >
 
     <uses-permission android:name="android.permission.INTERNET" />
+
+    // Used to check for network connectivity status to diplay user error message accordingly
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE"/>
+
     <uses-permission android:name="android.permission.CAMERA" />
     <uses-feature android:name="android.hardware.camera" />
     <uses-feature android:name="android.hardware.camera.autofocus" />
@@ -15,7 +19,6 @@
         android:theme="@style/AppTheme" >
         <activity
             android:name=".MainActivity"
-            android:configChanges="orientation"
             android:label="@string/app_name" >
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
