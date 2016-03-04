@@ -164,6 +164,9 @@ public class BookService extends IntentService {
             }
 
         }
+        // Internet connection is available so set the status as ok. This will cause UI to be updated if internet was not previously
+        // available
+        setConnectionStatus(STATUS_OK);
 
         final String ITEMS = "items";
 
@@ -183,6 +186,7 @@ public class BookService extends IntentService {
             if(bookJson.has(ITEMS)){
                 bookArray = bookJson.getJSONArray(ITEMS);
             }else{
+                //This broadcast is received in main activity. Upon being received it displays a toast saying that no book was found
                 Intent messageIntent = new Intent(MainActivity.MESSAGE_EVENT);
                 messageIntent.putExtra(MainActivity.MESSAGE_KEY,getResources().getString(R.string.not_found));
                 LocalBroadcastManager.getInstance(getApplicationContext()).sendBroadcast(messageIntent);
